@@ -10,7 +10,6 @@ adler.importHtmlTemplate("./tmpl/todayFullView.html",'#today-full-view', {
 //   mountCallback:checkLoadStatus,
 //   mountPoint:document.body
 // });
-
 */
 var ADLER = {}
 
@@ -81,38 +80,11 @@ ADLER.createAdlerObject = function () {
 
     //var spanClassTargetValue = data.data;
     var tpl = document.querySelector(templateName);
-    //console.log(tpl);
-    //tpl.content
     var clone = document.importNode(tpl.content, true);
     //templateMountedList
     //var tplHTML = tpl.innerHTML
     //tpl.content.querySelector('img').src = 'logo.png';
 
-    //console.log(clone);
-
-    if (data.tags){
-      for (var property in data.tags) {
-            if (data.tags.hasOwnProperty(property)) {
-                clone.querySelector(property).innerHTML = data.tags[property];
-            }
-        }
-    }
-    if (data.class){
-      for (var property in data.class) {
-            if (data.class.hasOwnProperty(property)) {
-                //data[property]
-                var target = clone.querySelector(property);
-                //console.log(data.class);
-                //console.log(property);
-                if(target){
-                  //console.log("addclass");
-                  target.className += " "+data.class[property];
-                }
-            }
-        }
-    }
-
-    //  console.log(data.autoMount);
     if (data.autoMount != undefined){
       autoMounting = data.autoMount;
     }
@@ -154,44 +126,15 @@ ADLER.createAdlerObject = function () {
       var tmplPath = options.filepath + tmplName + options.extension
       var type = mountPointsArray[i].className;
       if (type == "adlerInclude") {
-        self.importHtmlTemplate(tmplPath,'#tmpl-'+tmplName, {
+        importHtmlTemplate(tmplPath,'#tmpl-'+tmplName, {
           mountCallback:checkLoadStatus,
           //mountPoint:'#'+tmplName+'-mount-point'
           mountPoint:mountPointsArray[i]
         });
       }else {
-        self.importHtmlTemplate(tmplPath,'#tmpl-'+tmplName);
+        importHtmlTemplate(tmplPath,'#tmpl-'+tmplName);
       }
 
-    }
-  }
-
-  var preLoad = function (data) {
-    //create default options
-    var foptions = {};
-    var data = data || {};
-    foptions.callBack = data.callBack || false;
-    //get all mount point
-    var mountPointsArray = document.querySelectorAll('.adlerTmpl');
-
-    //set up a loading loop for init before a callBack
-    var loadingStatus = 0;
-    var loadingLength = mountPointsArray.length;
-
-    function checkLoadStatus() {
-      loadingStatus ++;
-      if (loadingStatus == loadingLength) {
-        if (foptions.callBack){
-          foptions.callBack();
-        }
-      }
-    }
-    //iterate trough all the node
-    for (i = 0; i < mountPointsArray.length; ++i) {
-      //alert()mountPointsArray[i].nodeType === 1
-      var tmplName = mountPointsArray[i].dataset.adlerSource
-      var tmplPath = options.filepath + tmplName + options.extension
-      self.importHtmlTemplate(tmplPath,'#tmpl-'+tmplName);
     }
   }
 
@@ -203,19 +146,6 @@ ADLER.createAdlerObject = function () {
       //Append element inside divid
       var test = {my_helper:"a change"}//helpers
 
-      // function extractElement(object) {
-      //   for (var property in object) {
-      //         if (data.hasOwnProperty(property)) {
-      //           let value = object[property];
-      //
-      //           if (typeof(injection) == "string"){
-      //             clone.getElementById(property).innerHTML = injection
-      //           }else if (typeof(injection) == "object") {
-      //
-      //           }
-      //         }
-      //     }
-      // }
 
       function tranferProps(props, el) {
         Object.keys(props).forEach(prop => {
@@ -234,21 +164,25 @@ ADLER.createAdlerObject = function () {
         });
       }
 
-      for (var property in data) {
-            if (data.hasOwnProperty(property)) {
-              console.log(property)
-              let injection = data[property];
-              const el = clone.getElementById(property);
-              if (typeof(injection) == "string"){
-                el.innerHTML = injection
-                // clone.querySelector(property).innerHTML = injection
-              }else if (typeof(injection) == "object") {
-                tranferProps(injection, el)
-              }
+      if (data) {
+        for (var property in data) {
+              if (data.hasOwnProperty(property)) {
+                console.log(property)
+                let injection = data[property];
+                const el = clone.getElementById(property);
+                if (typeof(injection) == "string"){
+                  el.innerHTML = injection
+                  // clone.querySelector(property).innerHTML = injection
+                }else if (typeof(injection) == "object") {
+                  tranferProps(injection, el)
+                }
 
-            }
-        }
-      // clone.querySelector(property)
+              }
+          }
+      }
+
+      //actual code
+      //xlm("tmpl-helper",{my_helper:{ct:"test",className:"plouf", onclick:function(){alert('test')}}},"#exemple-mount-point")
       //dreamcode
       // var a = adler.get("tmpl",{
       //   plouf:"test",
@@ -278,8 +212,6 @@ ADLER.createAdlerObject = function () {
   self.get =get
   self.init = init;
   self.mountDOM = mountDOM;
-  self.preLoad = preLoad;
-  self.importHtmlTemplate = importHtmlTemplate;
   self.mount = mount;
   return self
 }
