@@ -195,6 +195,87 @@ ADLER.createAdlerObject = function () {
     }
   }
 
+  var get = (tmpl, data, mountpoint) => {
+      //(tmpl, data)
+      var tpl = document.querySelector('#'+tmpl);
+      console.log(tpl);
+      var clone = document.importNode(tpl.content, true);
+      //Append element inside divid
+      var test = {my_helper:"a change"}//helpers
+
+      // function extractElement(object) {
+      //   for (var property in object) {
+      //         if (data.hasOwnProperty(property)) {
+      //           let value = object[property];
+      //
+      //           if (typeof(injection) == "string"){
+      //             clone.getElementById(property).innerHTML = injection
+      //           }else if (typeof(injection) == "object") {
+      //
+      //           }
+      //         }
+      //     }
+      // }
+
+      function tranferProps(props, el) {
+        Object.keys(props).forEach(prop => {
+          if (prop == "className") {
+            el[prop] = el[prop] + " " + props[prop];
+          }else if(prop == "ct"){
+            el.innerHTML = props[prop]
+          }else{
+            el[prop] = props[prop];
+            if (prop == "onclick") {
+              console.log(props[prop]);
+              console.log(el[prop]);
+            }
+          }
+
+        });
+      }
+
+      for (var property in data) {
+            if (data.hasOwnProperty(property)) {
+              console.log(property)
+              let injection = data[property];
+              const el = clone.getElementById(property);
+              if (typeof(injection) == "string"){
+                el.innerHTML = injection
+                // clone.querySelector(property).innerHTML = injection
+              }else if (typeof(injection) == "object") {
+                tranferProps(injection, el)
+              }
+
+            }
+        }
+      // clone.querySelector(property)
+      //dreamcode
+      // var a = adler.get("tmpl",{
+      //   plouf:"test",
+      //   padif:{ct:"esers",className:"rufl"},
+      //   hrt:{
+      //     div:{className:"ratat",
+      //       div:{ct:"rouflaquet"}
+      //     },
+      //   hrt:{
+      //     div:{className:"ratat",{
+      //       div:{ct:"rouflaquet"}},{
+      //       div:{ct:"rt"},{
+      //         div:"eteteet"}
+      //       },
+      //     }
+      //   }
+      // })
+      if (mountpoint) {
+
+        let mountPointElement = document.querySelector(mountpoint);
+        console.log(mountPointElement);
+        mountPointElement.appendChild(clone)
+      }
+      return clone
+    };
+
+  self.get =get
   self.init = init;
   self.mountDOM = mountDOM;
   self.preLoad = preLoad;

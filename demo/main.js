@@ -11,6 +11,7 @@ function createApp() {
         console.log("callBack triggered");
       }
     });
+    xlm = adler.get;//develop TO REMOVE
   }
   self.init = init;
   return self
