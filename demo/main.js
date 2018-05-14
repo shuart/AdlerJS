@@ -12,6 +12,13 @@ function createApp() {
       }
     });
     xlm = adler.get;//develop TO REMOVE
+    setTimeout(function () {
+      xlm("tmpl-helper",{
+        my_helper:{ct:"test",className:"plouf", onclick:function(){alert('test')}},
+        list_ex:[{},{},{}]
+        },"#exemple-mount-point")
+    }, 1000);
+
   }
   self.init = init;
   return self

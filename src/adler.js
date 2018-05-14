@@ -138,55 +138,92 @@ ADLER.createAdlerObject = function () {
     }
   }
 
-  var get = (tmpl, data, mountpoint) => {
-      //(tmpl, data)
-      var tpl = document.querySelector('#'+tmpl);
-      console.log(tpl);
-      var clone = document.importNode(tpl.content, true);
-      //Append element inside divid
-      var test = {my_helper:"a change"}//helpers
-
-
-      function tranferProps(props, el) {
-        Object.keys(props).forEach(prop => {
-          if (prop == "className") {
-            el[prop] = el[prop] + " " + props[prop];
-          }else if(prop == "ct"){
-            el.innerHTML = props[prop]
-          }else{
-            el[prop] = props[prop];
-            if (prop == "onclick") {
-              console.log(props[prop]);
-              console.log(el[prop]);
-            }
+  var tagHTML = function (clone, data) {
+    //Take an html element and return it with tags
+    function handleArrays(injection, el) {
+      let clone = document.importNode(el, true);
+      el.innerHTML=""//clear current
+      console.log('Array');
+      //var tpl = document.querySelector('#'+tmpl);
+      injection.forEach(function(elem) {
+        console.log(el);
+        let cloneOfClone = document.importNode(clone, true);
+        el.appendChild(cloneOfClone)
+        console.log(clone);
+      });
+      //[{padif:{ct:"esers",className:"rufl"}},{padif:{ct:"esers",className:"rufl"}}],
+    }
+    function tranferProps(props, el) {
+      Object.keys(props).forEach(prop => {
+        if (prop == "className") {
+          el[prop] = el[prop] + " " + props[prop];
+        }else if(prop == "ct"){
+          //el.innerHTML = props[prop]
+          el.insertAdjacentHTML('beforeend', props[prop]);
+        }else{
+          el[prop] = props[prop];
+          if (prop == "onclick") {
+            console.log(props[prop]);
+            console.log(el[prop]);
           }
+        }
+      });
+    }
 
-        });
-      }
-
+    function iterateData(data) {
       if (data) {
         for (var property in data) {
               if (data.hasOwnProperty(property)) {
                 console.log(property)
                 let injection = data[property];
+                console.log(property);
                 const el = clone.getElementById(property);
+                console.log(el);
+                //warn if not founf
                 if (typeof(injection) == "string"){
-                  el.innerHTML = injection
+                  // el.innerHTML = injection
+                  el.insertAdjacentHTML('beforeend', injection);
                   // clone.querySelector(property).innerHTML = injection
+                }else if (Array.isArray(injection)) {
+                  console.log(el);
+                  handleArrays(injection, el)
                 }else if (typeof(injection) == "object") {
                   tranferProps(injection, el)
                 }
-
               }
           }
       }
+    }
 
+    iterateData(data);
+
+    return clone
+  }
+
+  var get = (tmpl, data, mountpoint) => {
+      //(tmpl, data)
+      var tpl = document.querySelector('#'+tmpl);
+      //console.log(tpl);
+      var clone = document.importNode(tpl.content, true);
+      //Append element inside divid
+      var test = {my_helper:"a change"}//helpers
+
+      var tagedHTML = tagHTML(clone, data)
+
+      if (mountpoint) {
+
+        let mountPointElement = document.querySelector(mountpoint);
+        console.log(mountPointElement);
+        mountPointElement.appendChild(tagedHTML)
+      }
       //actual code
       //xlm("tmpl-helper",{my_helper:{ct:"test",className:"plouf", onclick:function(){alert('test')}}},"#exemple-mount-point")
       //dreamcode
       // var a = adler.get("tmpl",{
       //   plouf:"test",
       //   padif:{ct:"esers",className:"rufl"},
+      //   rif:[{padif:{ct:"esers",className:"rufl"}},{padif:{ct:"esers",className:"rufl"}}],
+      //   pf:{list:3,padif:{ct:"esers",className:"rufl"}},
       //   hrt:{
       //     div:{className:"ratat",
       //       div:{ct:"rouflaquet"}
@@ -200,13 +237,7 @@ ADLER.createAdlerObject = function () {
       //     }
       //   }
       // })
-      if (mountpoint) {
-
-        let mountPointElement = document.querySelector(mountpoint);
-        console.log(mountPointElement);
-        mountPointElement.appendChild(clone)
-      }
-      return clone
+      return tagedHTML
     };
 
   self.get =get
