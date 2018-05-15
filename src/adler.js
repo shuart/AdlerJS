@@ -180,9 +180,7 @@ ADLER.createAdlerObject = function () {
                 console.log(property)
                 let injection = data[property];
                 console.log(property);
-                console.log(clone);
                 const el = clone.getElementById(property);
-                //Warn
                 console.log(el);
                 //warn if not founf
                 if (typeof(injection) == "string"){
