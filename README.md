@@ -6,7 +6,7 @@ Adler is a simple HTML composable element system
 
 Add a script tag in your HTML file
 
-```
+```js
 import createAdler from "./vendor/adler.js";
 
 ```
