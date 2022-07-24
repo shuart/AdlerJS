@@ -1,204 +1,251 @@
-/*USAGE:
-adler.importHtmlTemplate("./tmpl/todayFullView.html",'#today-full-view', {
-  callback:function (event) {
-    //adler.mount("#today-full-view", document.body, {autoMount:true})
-  },
-  mountPoint:'#todayView'
-})
-
-// adler.importHtmlTemplate("./tmpl/view.cards.html",'#tmpl-cards', {
-//   mountCallback:checkLoadStatus,
-//   mountPoint:document.body
-// });
-
-*/
-var ADLER = {}
-
-ADLER.createAdlerObject = function () {
-  var self = {}
-  self.templateArea;
-  var options = {}
-
-  var init = function (data) {
-    var defaults = {
-      filepath:'./',
-      extension:'.html'
-    };
-    options.filepath = data.filepath || defaults.filepath;
-    options.extension = data.extension || defaults.extension;
-    //create Div to store imported templates
-    var element =  document.createElement('div');
-    element.id = 'adler-templates'
-    element.style.visibility='hidden';
-    self.templateArea = element;
-    document.body.appendChild(element)
-  }
-
-  function importHtmlTemplate(file, templateSelector, data) { //data.callback, mountpoint
-    var xhr = new XMLHttpRequest();
-      xhr.onload = function() {
-        console.log(file+ " loaded");
-        var html = this.response.documentElement.innerHTML
-        //console.log(document.querySelector("#mytemplate").content);
-        //var clone = document.importNode(tpl.content, true)
-        var temp = document.createElement('template');
-        console.log(html);
-        temp.innerHTML = html;
-        self.templateArea.appendChild(temp.content)
-        //console.log(newElement);
-
-        if (data && data.callback) {
-          data.callback({element:newElement})
-        }
-        if (data && data.mountPoint) {
-          var mountCallback=undefined;
-          if (data.mountCallback) {
-            mountCallback=data.mountCallback;
-          }
-          self.mount(templateSelector, data.mountPoint, {autoMount:true, mountCallback:mountCallback})
-        }
-
-      }
-      console.log("loading "+file);
-      xhr.open("GET", file);
-      xhr.responseType = "document";
-      xhr.send();
-  }
-
-  function mount(templateName, el, data) { // {tags = obj, class: obj, autoMount : true}
-    var templateName = templateName;
-    var mountPoint = el;
-    var mountPointElement;
-    if (mountPoint.nodeType === 1) {
-      mountPointElement = mountPoint
+var createAdler = function({
+    container = document.body,
+    type = "root",
+    parent= undefined,
+    params = {},
+    content ="",
+    components={},
+    css="",
+    nodeMap={},
+    slotMap={},
+    } = {}){
+    var self={}
+    var wrapper = undefined;
+    var renderList = []
+    var checkDataAttributes = true;
+    var instanceDomElement = undefined;
+    
+    
+    var createWrapper = function(){
+        wrapper = {}
+        wrapper.DOMElement=document.createElement("div")
+        return wrapper
     }
-    else if (mountPoint != document.body) {
-      mountPointElement = document.querySelector(mountPoint);
-    }else {
-      mountPointElement = document.body;
+
+    function addCSS(cssText){
+        var style = document.createElement('style');
+        style.innerHTML = cssText;
+        document.head.appendChild(style);
     }
-    console.log("mounting " + templateName);
 
-    //var spanClassTargetValue = data.data;
-    var tpl = document.querySelector(templateName);
-    //console.log(tpl);
-    //tpl.content
-    var clone = document.importNode(tpl.content, true);
-    //templateMountedList
-    //var tplHTML = tpl.innerHTML
-    //tpl.content.querySelector('img').src = 'logo.png';
+    var renderContent= function (params,paramIndex) {
+        let localWrapper = createWrapper()
+        if(typeof content === 'function'){//case content is a function
+            localWrapper.DOMElement.innerHTML = content(getParamsData(params,paramIndex))
+        }
+        if (localWrapper.DOMElement.childElementCount == 1) {//if template has a single root, no need for an extra div wrapper
+            localWrapper.DOMElement = localWrapper.DOMElement.firstElementChild; 
+        }
+        return localWrapper
+    }
 
-    //console.log(clone);
-
-    if (data.tags){
-      for (var property in data.tags) {
-            if (data.tags.hasOwnProperty(property)) {
-                clone.querySelector(property).innerHTML = data.tags[property];
+    var setUpEvents = function (localWrapper,params, paramIndex){
+        var setEventListener = function(localWrapper, action){
+            let target = localWrapper.DOMElement.querySelector(action[0])
+            if (target) {
+                function callback(event) {
+                    action[2](event, getParamsData(params,paramIndex), self);//inject params into event
+                }
+                target.addEventListener(action[1],callback);
             }
         }
+        if (params && params.on) {
+            if ( Array.isArray(params.on[0]) ) {
+                for (let index = 0; index < params.on.length; index++) {
+                    const action = params.on[index];
+                    setEventListener(localWrapper, action);
+                }
+            }else{
+                const action = params.on;
+                setEventListener(localWrapper, action);
+            } 
+        }
     }
-    if (data.class){
-      for (var property in data.class) {
-            if (data.class.hasOwnProperty(property)) {
-                //data[property]
-                var target = clone.querySelector(property);
-                //console.log(data.class);
-                //console.log(property);
-                if(target){
-                  //console.log("addclass");
-                  target.className += " "+data.class[property];
+
+    function getParamsData(params,paramIndex) { //get the current params even if in a 'for' case
+        let newData = params.data || {}
+        if (params.for && (paramIndex || paramIndex==0 )) {
+            newData = Object.assign({},newData, params.for[paramIndex] )
+        }
+        return newData
+    }
+
+    var appendToDom = function(mountTargetElement){
+        wrapper = renderContent(params);
+        setUpEvents(wrapper,params);
+        applyLogic(wrapper,params);
+        mountComponents(wrapper,params);
+        mountSlots(wrapper,params);
+        if (mountTargetElement && mountTargetElement=="replace") {
+            instanceDomElement.parentNode.replaceChild(wrapper.DOMElement, instanceDomElement);
+            instanceDomElement =  wrapper.DOMElement;
+        }else if(mountTargetElement){
+            mountTargetElement.appendChild(wrapper.DOMElement);
+            instanceDomElement =  wrapper.DOMElement
+        }else{
+            container.appendChild(wrapper.DOMElement);
+            instanceDomElement =  wrapper.DOMElement
+        }
+        return wrapper.DOMElement
+    }
+
+    var instance = function(extra){
+        var newPramas = Object.assign({}, params);
+        if(extra && extra.data){ newPramas.data = Object.assign({}, newPramas.data, extra.data) };
+        if(extra && extra.on){ newPramas.on = Object.assign({},newPramas.on, extra.on) };
+        if(extra && extra.nodeMap){ newPramas.nodeMap = Object.assign({},newPramas.nodeMap, extra.nodeMap) };
+        return createAdler({content: content, params:newPramas});
+    }
+
+    var mount = function(mountTarget){
+        if(mountTarget && typeof mountTarget =="string"){
+            appendToDom(document.querySelector(mountTarget))
+        }else if(mountTarget){
+            appendToDom(mountTarget)
+        }else{
+            appendToDom()
+        }
+    }
+    var applyLogic = function(wrapper,params){
+        var foundComponents = wrapper.DOMElement.querySelectorAll("[a-if]")
+        for (let i = 0; i < foundComponents.length; i++) {
+            const element = foundComponents[i];
+            if( params.data[element.getAttribute("a-if")] != true ) element.remove();
+        }
+    }
+    var registerInNodeMap = function(id, instance){
+        nodeMap[id]=instance;
+    }
+    var mountComponents = function(wrapper,params){
+        var foundComponents = wrapper.DOMElement.querySelectorAll("[adler]")
+        for (let i = 0; i < foundComponents.length; i++) {
+            const element = foundComponents[i];
+            var templateComponent = components[element.getAttribute("adler")]
+            if(!templateComponent){
+                console.log("missing component");
+            }else{
+                var newData = {data:{}, nodeMap:nodeMap}
+                if (element.getAttribute("a-sync")) {//Check if some values must be synced
+                    //newData=newData || {data:{}}
+                    newData.data = getSyncedData(element.getAttribute("a-sync"))
+                }
+                if (element.getAttribute("a-id")) {//Check if component is unique
+                    //newData=newData || {data:{}}
+                    newData.data = Object.assign(newData.data, getUniqueComponentData(element.getAttribute("a-id")) ) //add custom data attribute in new data
+                }
+                if(checkDataAttributes){//check if data attributes overides the template values
+                    //newData=newData || {data:{}}
+                    newData.data = Object.assign(newData.data, updateDataFromAttributes(templateComponent.getData(), element) ) //add custom data attribute in new data
+                }
+                //Mount one or multiple times
+                if (element.getAttribute("a-for")) {
+                    var listArray = params.data[element.getAttribute("a-for")];
+                    //newData=newData || {data:{}};
+                    for (let i = 0; i < listArray.length; i++) {
+                        const currentDataInArray = listArray[i];
+                        newData.data = Object.assign(newData.data, currentDataInArray ); //add custom data attribute in new data
+                        var instance = templateComponent.instance(newData); //Instance with new synced data
+                        if (element.getAttribute("a-id")) registerInNodeMap(element.getAttribute("a-id"),instance);
+                        instance.mount(element);
+                    }
+                }else{
+                    var instance = templateComponent.instance(newData); //Instance with new synced data
+                    if (element.getAttribute("a-id")) registerInNodeMap(element.getAttribute("a-id"),instance);
+                    instance.mount(element);
                 }
             }
         }
     }
 
-    //  console.log(data.autoMount);
-    if (data.autoMount != undefined){
-      autoMounting = data.autoMount;
-    }
-    if (data.autoMount == true) {
-      mountPointElement.appendChild(clone)
-      console.log(templateName + " mounted at " + mountPoint);
-      if (data.mountCallback) {
-        data.mountCallback();
-      }
-    }
-    return clone;
-  }
-
-  var mountDOM = function (data) {
-    //create default options
-    var foptions = {};
-    var data = data || {};
-    foptions.callBack = data.callBack || false;
-    //get all mount point
-    var mountPointsArray = document.querySelectorAll('.adlerInclude, .adlerTmpl');
-
-    //set up a loading loop for init before a callBack
-    var loadingStatus = 0;
-    var loadingLength = mountPointsArray.length;
-
-    function checkLoadStatus() {
-      loadingStatus ++;
-      if (loadingStatus == loadingLength) {
-        if (foptions.callBack){
-          foptions.callBack();
+    var mountSlots = function(wrapper,params){
+        var foundSlots = wrapper.DOMElement.querySelectorAll("[a-slot]")
+        for (let i = 0; i < foundSlots.length; i++) {
+            const element = foundSlots[i];
+            var component = slotMap[element.getAttribute("a-slot")]
+            if(!component){
+                console.log("missing component");
+            }else{
+                component.mount(element);
+            }
         }
-      }
     }
-    //iterate trough all the node
-    for (i = 0; i < mountPointsArray.length; ++i) {
-      console.log(mountPointsArray[i])
-      //alert()mountPointsArray[i].nodeType === 1
-      var tmplName = mountPointsArray[i].dataset.adlerSource
-      var tmplPath = options.filepath + tmplName + options.extension
-      var type = mountPointsArray[i].className;
-      if (type == "adlerInclude") {
-        self.importHtmlTemplate(tmplPath,'#tmpl-'+tmplName, {
-          mountCallback:checkLoadStatus,
-          //mountPoint:'#'+tmplName+'-mount-point'
-          mountPoint:mountPointsArray[i]
-        });
-      }else {
-        self.importHtmlTemplate(tmplPath,'#tmpl-'+tmplName);
-      }
 
-    }
-  }
-
-  var preLoad = function (data) {
-    //create default options
-    var foptions = {};
-    var data = data || {};
-    foptions.callBack = data.callBack || false;
-    //get all mount point
-    var mountPointsArray = document.querySelectorAll('.adlerTmpl');
-
-    //set up a loading loop for init before a callBack
-    var loadingStatus = 0;
-    var loadingLength = mountPointsArray.length;
-
-    function checkLoadStatus() {
-      loadingStatus ++;
-      if (loadingStatus == loadingLength) {
-        if (foptions.callBack){
-          foptions.callBack();
+    var getSyncedData = function(attributeValue){
+        var pairs= attributeValue.split(",")
+        var newValues = {}
+        for (let i = 0; i < pairs.length; i++) {
+            const pair = pairs[i].split(":");
+            newValues[ pair[0] ]=params.data[ pair[1] ]
+            
         }
-      }
+        return newValues
     }
-    //iterate trough all the node
-    for (i = 0; i < mountPointsArray.length; ++i) {
-      //alert()mountPointsArray[i].nodeType === 1
-      var tmplName = mountPointsArray[i].dataset.adlerSource
-      var tmplPath = options.filepath + tmplName + options.extension
-      self.importHtmlTemplate(tmplPath,'#tmpl-'+tmplName);
+    var getUniqueComponentData = function(id){
+        var newValues = {}
+        if (nodeMap[id]) {
+            newValues = nodeMap[id].getData()
+        }
+        return newValues
     }
-  }
+    var updateDataFromAttributes = function (data, element) {
+        var newData = {}
+        for (const key in data){
+            if(element.dataset[key]) newData[key] = element.dataset[key];
+        }
+        return newData
+    }
 
-  self.init = init;
-  self.mountDOM = mountDOM;
-  self.preLoad = preLoad;
-  self.importHtmlTemplate = importHtmlTemplate;
-  self.mount = mount;
-  return self
+    var getData = function(){
+        return params.data
+    }
+    var getNodes = function(){
+        return Object.assign({}, nodeMap, slotMap)
+    }
+
+    var setData = function(newData){
+        console.log("update data");
+        params.data = Object.assign(params.data,newData )
+        update()
+    }
+    var append = function (component,slot) {
+        slotMap[slot] = component;
+    }
+    var clearSlot = function (slot) {
+        slotMap[slot].unmount()
+        slotMap[slot] = undefined;
+        //wrapper.DOMElement.querySelector("[a-slot]="+slot).innerHTML=""
+    }
+
+    var update = function(){
+        //remove()
+        appendToDom("replace")
+    }
+
+    var remove = function(){
+        wrapper.DOMElement.remove()
+    }
+    var unmount = function(){
+        remove()
+    }
+
+    var init= function(){
+        //init template elements (like css etc)
+        if (css) {addCSS(css)};
+    }
+
+    init()
+
+
+    self.unmount = unmount;
+    self.clearSlot = clearSlot;
+    self.update = update;
+    self.append = append;
+    self.getNodes = getNodes;
+    self.getData = getData;
+    self.instance = instance;
+    self.setData = setData;
+    self.mount = mount;
+    return self
 }
+
+export default createAdler;
